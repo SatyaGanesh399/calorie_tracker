@@ -1,0 +1,21 @@
+# Copy this file to `local.properties` (which is git-ignored) and fill in what you need.
+#
+# Android Studio writes sdk.dir here automatically the first time you open the project.
+# sdk.dir=/Users/you/Library/Android/sdk
+
+# ---------------------------------------------------------------------------
+# OPTIONAL: USDA FoodData Central API key
+# ---------------------------------------------------------------------------
+# The app works completely without this. Open Food Facts needs no key and is on
+# by default. Add a USDA key only if you want better coverage of generic and
+# whole foods (chicken breast, brown rice, etc).
+#
+# Free key, issued instantly: https://fdc.nal.usda.gov/api-key-signup.html
+#
+# SECURITY NOTE: anything compiled into an Android APK can be extracted from it.
+# BuildConfig fields, string resources and native constants are all readable by
+# anyone who has the APK. That is fine for a free, rate-limited, read-only key on
+# a personal build, and it is why the app defaults to a provider that needs no key
+# at all. Never put a key you actually care about in here.
+#
+# USDA_API_KEY=your_data_gov_key_here

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Local device-to-device / Google backup of the app data directory.
+  Nothing is uploaded by the app itself; this only participates in the
+  system backup the user already controls in Android Settings.
+-->
+<full-backup-content>
+    <include domain="database" path="." />
+    <include domain="sharedpref" path="." />
+    <include domain="file" path="datastore" />
+</full-backup-content>
