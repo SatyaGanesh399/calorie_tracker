@@ -6,6 +6,37 @@ Built with Kotlin, Jetpack Compose, Material 3, Room, DataStore, CameraX + ML Ki
 
 ---
 
+## Getting an APK without installing anything
+
+Push this repo to GitHub and Actions builds the APK for you — no Android Studio, no SDK, no JDK on your machine.
+
+| Workflow | Trigger | Output |
+|---|---|---|
+| `.github/workflows/build.yml` | every push, or **Actions → Build debug APK → Run workflow** | debug APK as a downloadable artifact (kept 30 days) |
+| `.github/workflows/release.yml` | pushing a tag like `v1.0` | signed release APK attached to a GitHub Release |
+
+```bash
+git remote add origin https://github.com/<you>/CalorieTracker.git
+git push -u origin main
+```
+
+Then **Actions** tab → newest run → **Artifacts** → `CalorieTracker-debug-apk`. Unzip on your phone and open the APK (Android will ask you to allow "install unknown apps" for your browser or file manager the first time).
+
+For a release build you can update over the top later, add these repository secrets under **Settings → Secrets and variables → Actions**, then push a tag:
+
+```
+KEYSTORE_BASE64      base64 -i my-release.jks | pbcopy
+KEYSTORE_PASSWORD
+KEY_ALIAS
+KEY_PASSWORD
+```
+
+Without them the release job signs with a generated debug key — still installable, but switching to a real key later needs an uninstall first.
+
+Make the repo **private** unless you want the code public. Nothing in it contains personal data or secrets (`local.properties` is git-ignored), but there's no reason for it to be public either.
+
+---
+
 ## Opening the project
 
 1. Open the `CalorieTracker` folder in **Android Studio Ladybug (2024.2) or newer**.
