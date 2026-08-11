@@ -31,6 +31,15 @@ enum class WidgetTheme(val id: String, val label: String) {
     }
 }
 
+/**
+ * Glance has two `ColorProvider` factories with the same name in different packages:
+ * `androidx.glance.unit.ColorProvider(color)` for a fixed colour, and
+ * `androidx.glance.appwidget.unit.ColorProvider(day, night)` for one that follows the
+ * system theme. Importing both would be ambiguous, so the day/night one is wrapped here.
+ */
+private fun dayNight(day: Color, night: Color): ColorProvider =
+    androidx.glance.appwidget.unit.ColorProvider(day = day, night = night)
+
 /** Resolved look for one widget instance. */
 data class WidgetStyle(
     val theme: WidgetTheme = WidgetTheme.SYSTEM,
@@ -42,10 +51,10 @@ data class WidgetStyle(
 
     val background: ColorProvider
         get() = when {
-            transparent -> ColorProvider(day = Color(0x22000000), night = Color(0x33000000))
+            transparent -> dayNight(Color(0x22000000), Color(0x33000000))
             theme == WidgetTheme.LIGHT -> ColorProvider(Color(0xFFF6FAF6))
             theme == WidgetTheme.DARK -> ColorProvider(Color(0xFF11150F))
-            else -> ColorProvider(day = Color(0xFFF6FAF6), night = Color(0xFF11150F))
+            else -> dayNight(Color(0xFFF6FAF6), Color(0xFF11150F))
         }
 
     val onBackground: ColorProvider
@@ -53,7 +62,7 @@ data class WidgetStyle(
             transparent -> ColorProvider(Color.White)
             theme == WidgetTheme.LIGHT -> ColorProvider(Color(0xFF191D18))
             theme == WidgetTheme.DARK -> ColorProvider(Color(0xFFE3E7E0))
-            else -> ColorProvider(day = Color(0xFF191D18), night = Color(0xFFE3E7E0))
+            else -> dayNight(Color(0xFF191D18), Color(0xFFE3E7E0))
         }
 
     val muted: ColorProvider
@@ -61,7 +70,7 @@ data class WidgetStyle(
             transparent -> ColorProvider(Color(0xCCFFFFFF))
             theme == WidgetTheme.LIGHT -> ColorProvider(Color(0xFF5A6157))
             theme == WidgetTheme.DARK -> ColorProvider(Color(0xFF9AA396))
-            else -> ColorProvider(day = Color(0xFF5A6157), night = Color(0xFF9AA396))
+            else -> dayNight(Color(0xFF5A6157), Color(0xFF9AA396))
         }
 
     val accentProvider: ColorProvider get() = ColorProvider(accentColor)
@@ -71,7 +80,7 @@ data class WidgetStyle(
             transparent -> ColorProvider(Color(0x55FFFFFF))
             theme == WidgetTheme.LIGHT -> ColorProvider(Color(0xFFDCE5D9))
             theme == WidgetTheme.DARK -> ColorProvider(Color(0xFF2C3329))
-            else -> ColorProvider(day = Color(0xFFDCE5D9), night = Color(0xFF2C3329))
+            else -> dayNight(Color(0xFFDCE5D9), Color(0xFF2C3329))
         }
 
     companion object {

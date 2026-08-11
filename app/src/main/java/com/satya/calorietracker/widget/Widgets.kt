@@ -19,6 +19,7 @@ import androidx.glance.layout.Alignment
 import androidx.glance.layout.Box
 import androidx.glance.layout.Column
 import androidx.glance.layout.Row
+import androidx.glance.layout.RowScope
 import androidx.glance.layout.Spacer
 import androidx.glance.layout.fillMaxWidth
 import androidx.glance.layout.height
@@ -138,7 +139,6 @@ class WaterWidget : GlanceAppWidget() {
                             style = style,
                             onClick = actionRunCallback<AddWaterAction>()
                         )
-                        Spacer(GlanceModifier.height(0.dp))
                     }
                 }
             }
@@ -313,8 +313,12 @@ private fun SummaryLine(emoji: String, text: String, style: WidgetStyle) {
     }
 }
 
+/**
+ * Receiver is [RowScope] because `defaultWeight()` is a member of the row/column
+ * scope in Glance, not a free extension on GlanceModifier.
+ */
 @Composable
-private fun QuickTile(
+private fun RowScope.QuickTile(
     emoji: String,
     label: String,
     style: WidgetStyle,
