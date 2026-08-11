@@ -2,6 +2,9 @@ name: Build debug APK
 
 # Runs on every push and pull request, and can be triggered by hand from the
 # Actions tab. Produces an installable debug APK as a downloadable artifact.
+#
+# When compilation fails, the Kotlin errors are extracted and written to the run
+# summary page, so you never have to scroll a Gradle stack trace to find them.
 on:
   push:
     branches: ["**"]
@@ -31,8 +34,7 @@ jobs:
         uses: android-actions/setup-android@v3
 
       # The Gradle wrapper JAR is a binary and isn't committed, so we install
-      # Gradle directly instead of relying on ./gradlew. This also generates the
-      # wrapper for anyone who clones the repo afterwards.
+      # Gradle directly instead of relying on ./gradlew.
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
@@ -43,8 +45,59 @@ jobs:
         run: yes | sdkmanager --licenses > /dev/null 2>&1 || true
 
       - name: Build debug APK
-        run: gradle assembleDebug --no-daemon --stacktrace
+        id: build
+        run: |
+          set -o pipefail
+          gradle assembleDebug --no-daemon --console=plain 2>&1 | tee build.log
 
+      # ------------------------------------------------------------------
+      # Failure diagnostics. `e:` lines are Kotlin compile errors, `w:` are
+      # warnings, and AAPT/manifest problems show up as "ERROR:" lines.
+      # ------------------------------------------------------------------
+      - name: Extract compile errors
+        if: failure()
+        run: |
+          # Strip the runner's absolute path prefix so the paths are readable.
+          PREFIX="file://${GITHUB_WORKSPACE}/"
+          extract() { grep -E "$1" build.log | sed "s|${PREFIX}||g" | head -n 200; }
+
+          {
+            echo "## Build failed"
+            echo ""
+            echo "### Kotlin compile errors"
+            echo '```'
+            extract '^e: ' || echo "(none)"
+            echo '```'
+            echo ""
+            echo "### Resource / manifest errors"
+            echo '```'
+            extract '^(ERROR|error):' || echo "(none)"
+            echo '```'
+            echo ""
+            echo "### Gradle failure summary"
+            echo '```'
+            grep -E '^(FAILURE|\* What went wrong|Execution failed|> )' build.log | head -n 40 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+          echo "::group::Kotlin compile errors"
+          extract '^e: ' || echo "(none found)"
+          echo "::endgroup::"
+
+      - name: Upload full build log
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: |
+            build.log
+            app/build/reports/
+          retention-days: 14
+          if-no-files-found: ignore
+
+      # ------------------------------------------------------------------
+      # Success path
+      # ------------------------------------------------------------------
       - name: Rename APK
         if: success()
         run: |
@@ -60,16 +113,3 @@ jobs:
           path: out/*.apk
           retention-days: 30
           if-no-files-found: error
-
-      # When the build fails, surface the compiler output as an artifact too so
-      # it's easy to copy the whole thing out rather than scrolling the log.
-      - name: Upload build reports on failure
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-reports
-          path: |
-            app/build/reports/
-            build/reports/
-          retention-days: 7
-          if-no-files-found: ignore
