@@ -22,6 +22,47 @@ git push -u origin main
 
 Then **Actions** tab → newest run → **Artifacts** → `CalorieTracker-debug-apk`. Unzip on your phone and open the APK (Android will ask you to allow "install unknown apps" for your browser or file manager the first time).
 
+### Keeping your data across updates
+
+**Do this once, before you install a build you care about.**
+
+Android identifies an app by its signing key. CI runs on a fresh machine every time, and if no keystore is provided the Android plugin generates a new random one — so every build would look like a *different app*, and installing it would force an uninstall, taking your entire diary with it.
+
+Create one keystore, store it as a secret, and every future build signs identically and installs cleanly over the top:
+
+```bash
+keytool -genkeypair -v -keystore calorietracker.jks \
+  -alias calorietracker -keyalg RSA -keysize 2048 -validity 10000 \
+  -storepass CHOOSE_A_PASSWORD -keypass CHOOSE_A_PASSWORD \
+  -dname "CN=Calorie Tracker,O=Personal,C=IN"
+
+base64 -i calorietracker.jks | pbcopy      # macOS: now on your clipboard
+```
+
+Add these under **Settings → Secrets and variables → Actions → New repository secret**:
+
+| Secret | Value |
+|---|---|
+| `KEYSTORE_BASE64` | the base64 you just copied |
+| `KEYSTORE_PASSWORD` | the password you chose |
+| `KEY_ALIAS` | `calorietracker` |
+| `KEY_PASSWORD` | the same password |
+
+Keep `calorietracker.jks` somewhere safe and **out of the repo** (it's git-ignored). Lose it and you're back to uninstall-to-update.
+
+The very first install after adding these secrets still needs an uninstall, because the previous APKs were signed with throwaway keys. Export your data first if you've already logged anything.
+
+**What survives what:**
+
+| | Diary, weight, water, workouts |
+|---|---|
+| Update over the top (same key) | ✅ kept |
+| New foods/exercises added to the app | ✅ added alongside yours, nothing overwritten |
+| Uninstall → install | ❌ Android wipes app data |
+| Different signing key | ❌ forces uninstall |
+
+Belt and braces: **Settings → Data → Export as JSON** before any risky install.
+
 For a release build you can update over the top later, add these repository secrets under **Settings → Secrets and variables → Actions**, then push a tag:
 
 ```
@@ -57,7 +98,11 @@ Copy `local.properties.example` to `local.properties` and add a free key if you 
 
 **Home** — greeting, week strip, calorie ring, macro dials, water and weight cards, and one card per meal. Swipe an entry left to delete (with undo). `+ Add food` opens a sheet with search, scan, favourites, recent, my foods, recipes, quick add and create-custom.
 
-**Meals** — your library: favourites, custom foods, recipes and recently logged, each with a one-tap log button.
+**Workouts** — start a session, add exercises from a ~250-move library that filters as you type, and log every set individually (60 kg × 8, 60 kg × 6, 55 kg × 8). Each card pre-fills with what you lifted last time, shows estimated 1RM per set and volume per exercise, and past sessions can be repeated in one tap. Cardio entries ask for time and distance instead of weight and reps.
+
+Workouts deliberately do **not** add calories back to your food budget: your calorie target already assumes your activity level, so adding burn on top double-counts it, and burn estimates for lifting are guesswork.
+
+**Food library** (Settings → My food library, or from the Add Food sheet) — favourites, custom foods, recipes and recents, with editing and deleting. Not a bottom-nav tab, because everything in it is already one tap away inside Add Food.
 
 **Progress** — weight (line chart with goal line, start/current/goal, weekly and monthly change), nutrition (calorie bars against target, averages, highest/lowest day, logging streak) and water, over 7 days to all time.
 
@@ -107,15 +152,15 @@ app/src/main/java/com/satya/calorietracker/
 ├── di/AppContainer.kt          all wiring
 ├── domain/                     models, unit conversion, goal calculator
 ├── data/
-│   ├── db/                     entities, DAOs, mappers, AppDatabase
+│   ├── db/                     entities, DAOs, mappers, migrations, AppDatabase
 │   ├── prefs/                  UserPreferences, reminders, DataStore
 │   ├── remote/                 FoodDataProvider + OFF / USDA / local
 │   ├── repository/             Diary, Food, Weight, Water, Recipe, Stats
 │   ├── backup/                 JSON + CSV export, JSON import
-│   └── seed/SeedFoods.kt       ~100 offline foods incl. Indian staples
+│   └── seed/                   ~230 offline foods (Indian-heavy), ~250 exercises
 ├── ui/
 │   ├── theme/  components/     design system, rings, bars, charts
-│   ├── home/ meals/ progress/ history/ settings/
+│   ├── home/ workout/ progress/ history/ settings/ meals/
 │   ├── addfood/                search, portion editor, quick add, custom food
 │   ├── recipe/  scanner/
 │   └── navigation/             routes + NavHost

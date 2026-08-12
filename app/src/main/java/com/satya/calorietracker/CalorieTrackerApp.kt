@@ -35,9 +35,14 @@ class CalorieTrackerApp : Application(), Configuration.Provider {
         applicationScope.launch {
             // Re-arm anything time-based. Cheap, and keeps reminders correct after an update.
             val prefs = container.preferencesRepository.preferences.first()
-            ReminderScheduler(this@CalorieTrackerApp).rescheduleAll(prefs.reminders)
-            ReminderScheduler(this@CalorieTrackerApp).scheduleDailyReset()
+            val scheduler = ReminderScheduler(this@CalorieTrackerApp)
+            scheduler.rescheduleAll(prefs.reminders)
+            scheduler.scheduleDailyReset()
             MaintenanceScheduler.schedule(this@CalorieTrackerApp)
+
+            // Pick up foods and exercises added since this app was installed. Only
+            // inserts what's missing, so nothing you've logged is ever touched.
+            runCatching { container.seedSync.run() }
         }
     }
 }

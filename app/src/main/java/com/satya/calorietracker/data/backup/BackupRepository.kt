@@ -2,11 +2,13 @@ package com.satya.calorietracker.data.backup
 
 import androidx.room.withTransaction
 import com.satya.calorietracker.data.db.AppDatabase
+import com.satya.calorietracker.data.db.ExerciseDao
 import com.satya.calorietracker.data.db.FoodDao
 import com.satya.calorietracker.data.db.LogDao
 import com.satya.calorietracker.data.db.RecipeDao
 import com.satya.calorietracker.data.db.WaterDao
 import com.satya.calorietracker.data.db.WeightDao
+import com.satya.calorietracker.data.db.WorkoutDao
 import com.satya.calorietracker.data.prefs.PreferencesRepository
 import com.satya.calorietracker.data.repository.DataChangeNotifier
 import kotlinx.coroutines.Dispatchers
@@ -18,6 +20,7 @@ import kotlinx.serialization.json.Json
 /** Result of restoring a backup, surfaced verbatim in a dialog. */
 sealed interface ImportResult {
     data class Success(
+        val workouts: Int = 0,
         val foods: Int,
         val logEntries: Int,
         val weights: Int,
@@ -25,7 +28,7 @@ sealed interface ImportResult {
         val recipes: Int,
         val preferencesRestored: Boolean
     ) : ImportResult {
-        val total: Int get() = foods + logEntries + weights + water + recipes
+        val total: Int get() = foods + logEntries + weights + water + recipes + workouts
     }
 
     data class Failure(val message: String) : ImportResult
@@ -44,6 +47,8 @@ class BackupRepository(
     private val weightDao: WeightDao,
     private val waterDao: WaterDao,
     private val recipeDao: RecipeDao,
+    private val exerciseDao: ExerciseDao,
+    private val workoutDao: WorkoutDao,
     private val prefs: PreferencesRepository,
     private val notifier: DataChangeNotifier = DataChangeNotifier.NONE
 ) {
@@ -67,7 +72,9 @@ class BackupRepository(
             logEntries = logDao.getAll().map { it.toBackup(foodKeyById[it.foodId]) },
             weights = weightDao.getAll().map { it.toBackup() },
             water = waterDao.getAll().map { it.toBackup() },
-            recipes = recipeDao.getAll().map { it.recipe.toBackup(it.ingredients) }
+            recipes = recipeDao.getAll().map { it.recipe.toBackup(it.ingredients) },
+            exercises = exerciseDao.getAll().filter { it.isCustom }.map { it.toBackup() },
+            workouts = workoutDao.allSessions().map { it.toBackup() }
         )
         json.encodeToString(backup)
     }
@@ -117,6 +124,23 @@ class BackupRepository(
         }
 
         sb.appendLine()
+        sb.appendLine("# Workouts")
+        sb.appendLine("date,workout,exercise,set,weight_kg,reps,duration_s,distance_m,warmup")
+        workoutDao.allSessions().forEach { session ->
+            session.sets.forEach { set ->
+                sb.appendLine(
+                    listOf(
+                        session.session.date, session.session.name, set.exerciseName,
+                        set.setNumber.toString(), set.weightKg.fmt(), set.reps.toString(),
+                        (set.durationSeconds ?: 0).toString(),
+                        (set.distanceMeters ?: 0.0).fmt(),
+                        if (set.isWarmup) "yes" else "no"
+                    ).joinToString(",") { it.csv() }
+                )
+            }
+        }
+
+        sb.appendLine()
         sb.appendLine("# My foods (per 100 g/ml)")
         sb.appendLine("name,brand,barcode,unit,calories,protein_g,carbs_g,fat_g,fiber_g,sugar_g,sodium_mg,serving_size,serving_label")
         foodDao.getAll().filter { it.isCustom }.forEach { f ->
@@ -160,6 +184,8 @@ class BackupRepository(
                     weightDao.deleteAll()
                     waterDao.deleteAll()
                     recipeDao.deleteAll()
+                    workoutDao.deleteAllSets()
+                    workoutDao.deleteAllSessions()
                     // Foods are kept: the seed catalog is worth more than a clean slate.
                 }
 
@@ -185,12 +211,46 @@ class BackupRepository(
                         r.ingredients.mapIndexed { index, ing -> ing.toEntity(recipeId, index) }
                     )
                 }
+
+                // ---- workouts (schema v2; absent from v1 backups, which is fine) ----
+                val now = System.currentTimeMillis()
+                val exerciseIdsByName = exerciseDao.getAll()
+                    .associateTo(mutableMapOf()) { it.name to it.id }
+
+                backup.exercises.forEach { e ->
+                    if (!exerciseIdsByName.containsKey(e.name)) {
+                        exerciseIdsByName[e.name] = exerciseDao.insert(e.toEntity(now))
+                    }
+                }
+
+                backup.workouts.forEach { w ->
+                    val sessionId = workoutDao.insertSession(w.toEntity())
+                    val sets = w.sets.map { set ->
+                        // An exercise the library has never heard of (renamed, or from
+                        // another phone) gets recreated rather than dropping the set.
+                        val exerciseId = exerciseIdsByName.getOrPut(set.exerciseName) {
+                            exerciseDao.insert(
+                                com.satya.calorietracker.data.db.ExerciseEntity(
+                                    name = set.exerciseName,
+                                    category = "FULL_BODY",
+                                    equipment = "OTHER",
+                                    primaryMuscle = "Restored from backup",
+                                    isCustom = true,
+                                    createdAt = now
+                                )
+                            )
+                        }
+                        set.toEntity(sessionId, exerciseId)
+                    }
+                    workoutDao.insertSets(sets)
+                }
             }
 
             backup.preferences?.let { prefs.replaceAll(it) }
             notifier.onDataChanged()
 
             ImportResult.Success(
+                workouts = backup.workouts.size,
                 foods = backup.foods.size,
                 logEntries = backup.logEntries.size,
                 weights = backup.weights.size,
@@ -211,6 +271,9 @@ class BackupRepository(
             weightDao.deleteAll()
             waterDao.deleteAll()
             recipeDao.deleteAll()
+            workoutDao.deleteAllSets()
+            workoutDao.deleteAllSessions()
+            exerciseDao.deleteAll()
             foodDao.deleteAll()
         }
         prefs.clear()

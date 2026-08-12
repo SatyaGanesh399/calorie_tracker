@@ -69,6 +69,9 @@ import com.satya.calorietracker.ui.settings.ProvidersSettingsScreen
 import com.satya.calorietracker.ui.settings.SettingsScreen
 import com.satya.calorietracker.ui.settings.SettingsViewModel
 import com.satya.calorietracker.ui.settings.UnitsSettingsScreen
+import com.satya.calorietracker.ui.workout.ExercisePickerSheet
+import com.satya.calorietracker.ui.workout.WorkoutViewModel
+import com.satya.calorietracker.ui.workout.WorkoutsScreen
 import com.satya.calorietracker.util.DateUtils
 import kotlinx.coroutines.launch
 
@@ -197,8 +200,8 @@ fun CalorieTrackerRoot(
                 )
             }
 
-            // ------------------------------------------------------------ MEALS
-            composable(Routes.MEALS) {
+            // ---------------------------------------------------------- LIBRARY
+            composable(Routes.LIBRARY) {
                 val mealsViewModel: MealsViewModel = viewModel(factory = MealsViewModel.Factory)
                 val favorites by mealsViewModel.favorites.collectAsStateWithLifecycle()
                 val myFoods by mealsViewModel.myFoods.collectAsStateWithLifecycle()
@@ -206,6 +209,7 @@ fun CalorieTrackerRoot(
                 val recipes by mealsViewModel.recipes.collectAsStateWithLifecycle()
 
                 MealsScreen(
+                    onBack = { navController.popBackStack() },
                     favorites = favorites,
                     myFoods = myFoods,
                     recent = recent,
@@ -238,6 +242,54 @@ fun CalorieTrackerRoot(
                     onCreateRecipe = { navController.navigate(Routes.recipeEditor()) },
                     contentPadding = padding
                 )
+            }
+
+            // --------------------------------------------------------- WORKOUTS
+            composable(Routes.WORKOUTS) {
+                val workoutViewModel: WorkoutViewModel =
+                    viewModel(factory = WorkoutViewModel.Factory)
+                val workoutState by workoutViewModel.state.collectAsStateWithLifecycle()
+                val pickerState by workoutViewModel.picker.collectAsStateWithLifecycle()
+                var showPicker by remember { mutableStateOf(false) }
+                val pickerSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+                WorkoutsScreen(
+                    state = workoutState,
+                    onStartWorkout = workoutViewModel::startWorkout,
+                    onFinishWorkout = workoutViewModel::finishWorkout,
+                    onDiscardWorkout = workoutViewModel::discardWorkout,
+                    onAddExercise = {
+                        workoutViewModel.openPicker()
+                        showPicker = true
+                    },
+                    onAddSet = { exercise, weight, reps, seconds, metres, warmup ->
+                        workoutViewModel.addSet(exercise, weight, reps, seconds, metres, warmup)
+                    },
+                    onDeleteSet = workoutViewModel::deleteSet,
+                    onRemoveExercise = workoutViewModel::removeExerciseFromSession,
+                    onDeleteSession = workoutViewModel::deleteSession,
+                    onRepeatSession = workoutViewModel::repeatSession,
+                    contentPadding = padding
+                )
+
+                if (showPicker) {
+                    ExercisePickerSheet(
+                        state = pickerState,
+                        sheetState = pickerSheetState,
+                        onQueryChange = workoutViewModel::onPickerQuery,
+                        onCategoryChange = workoutViewModel::onPickerCategory,
+                        onSelect = {
+                            workoutViewModel.selectExercise(it)
+                            showPicker = false
+                        },
+                        onToggleFavorite = workoutViewModel::toggleExerciseFavorite,
+                        onCreateCustom = { name, category, equipment, muscle ->
+                            workoutViewModel.createCustomExercise(name, category, equipment, muscle) { }
+                            showPicker = false
+                        },
+                        onDismiss = { showPicker = false }
+                    )
+                }
             }
 
             // --------------------------------------------------------- PROGRESS
@@ -288,6 +340,7 @@ fun CalorieTrackerRoot(
                     onOpenData = { navController.navigate(Routes.SETTINGS_DATA) },
                     onOpenProviders = { navController.navigate(Routes.SETTINGS_PROVIDERS) },
                     onOpenPrivacy = { navController.navigate(Routes.SETTINGS_PRIVACY) },
+                    onOpenLibrary = { navController.navigate(Routes.LIBRARY) },
                     contentPadding = padding
                 )
             }
@@ -324,7 +377,7 @@ fun CalorieTrackerRoot(
             },
             onMyFoods = {
                 addFoodTarget = null
-                navController.navigateTopLevel(Routes.MEALS)
+                navController.navigate(Routes.LIBRARY)
             },
             onQuickAdd = {
                 addFoodTarget = null
@@ -336,7 +389,7 @@ fun CalorieTrackerRoot(
             },
             onRecipes = {
                 addFoodTarget = null
-                navController.navigateTopLevel(Routes.MEALS)
+                navController.navigate(Routes.LIBRARY)
             },
             onRepeatFood = { food ->
                 homeViewModel.repeatFood(food, meal)

@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Star
@@ -27,7 +28,10 @@ import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.StarBorder
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExtendedFloatingActionButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,8 +53,10 @@ import com.satya.calorietracker.ui.components.ChoiceChip
 import com.satya.calorietracker.ui.components.EmptyState
 import com.satya.calorietracker.util.Format
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MealsScreen(
+    onBack: () -> Unit,
     favorites: List<Food>,
     myFoods: List<Food>,
     recent: List<Food>,
@@ -72,18 +78,20 @@ fun MealsScreen(
 ) {
     var tab by remember { mutableStateOf(MealsTab.FAVORITES) }
 
-    Box(modifier.fillMaxSize()) {
-        Column(Modifier.fillMaxSize()) {
-            Text(
-                text = "My library",
-                style = MaterialTheme.typography.headlineMedium,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.padding(
-                    start = 20.dp,
-                    end = 20.dp,
-                    top = contentPadding.calculateTopPadding() + 12.dp
-                )
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("My food library") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(Icons.Filled.ArrowBack, contentDescription = "Back")
+                    }
+                }
             )
+        }
+    ) { barPadding ->
+    Box(modifier.fillMaxSize().padding(barPadding)) {
+        Column(Modifier.fillMaxSize()) {
             Spacer(Modifier.height(4.dp))
             Text(
                 text = "Everything you eat often, one tap away.",
@@ -166,6 +174,7 @@ fun MealsScreen(
                 .align(Alignment.BottomEnd)
                 .padding(end = 20.dp, bottom = contentPadding.calculateBottomPadding() + 20.dp)
         )
+    }
     }
 }
 

@@ -72,6 +72,10 @@ interface FoodDao {
     @Query("SELECT COUNT(*) FROM foods")
     suspend fun count(): Int
 
+    /** Names of the bundled foods, so SeedSync can add only what's missing. */
+    @Query("SELECT name FROM foods WHERE providerId = 'local'")
+    suspend fun seededNames(): List<String>
+
     @Query("SELECT COUNT(*) FROM foods WHERE isCustom = 1")
     fun observeCustomCount(): Flow<Int>
 

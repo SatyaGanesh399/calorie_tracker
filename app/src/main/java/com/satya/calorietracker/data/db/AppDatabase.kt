@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import androidx.sqlite.db.SupportSQLiteDatabase
+import com.satya.calorietracker.data.seed.SeedExercises
 import com.satya.calorietracker.data.seed.SeedFoods
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -17,9 +18,12 @@ import kotlinx.coroutines.launch
         WeightEntryEntity::class,
         WaterEntryEntity::class,
         RecipeEntity::class,
-        RecipeIngredientEntity::class
+        RecipeIngredientEntity::class,
+        ExerciseEntity::class,
+        WorkoutSessionEntity::class,
+        WorkoutSetEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -29,6 +33,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun weightDao(): WeightDao
     abstract fun waterDao(): WaterDao
     abstract fun recipeDao(): RecipeDao
+    abstract fun exerciseDao(): ExerciseDao
+    abstract fun workoutDao(): WorkoutDao
 
     companion object {
         private const val DB_NAME = "calorie_tracker.db"
@@ -43,17 +49,23 @@ abstract class AppDatabase : RoomDatabase() {
 
         private fun build(context: Context, scope: CoroutineScope): AppDatabase =
             Room.databaseBuilder(context, AppDatabase::class.java, DB_NAME)
+                .addMigrations(*Migrations.ALL)
                 .addCallback(object : Callback() {
                     override fun onCreate(db: SupportSQLiteDatabase) {
-                        // Seed the offline food catalog the first time the DB is created,
-                        // off the main thread so first launch stays fast.
+                        // Seed the offline catalogs the first time the DB is created,
+                        // off the main thread so first launch stays fast. Existing
+                        // installs are topped up by SeedSync instead.
                         scope.launch(Dispatchers.IO) {
-                            instance?.foodDao()?.insertAll(SeedFoods.entities())
+                            instance?.let {
+                                it.foodDao().insertAll(SeedFoods.entities())
+                                it.exerciseDao().insertAll(SeedExercises.entities())
+                            }
                         }
                     }
                 })
-                // Personal app, single schema version so far. When you add a migration,
-                // register it here instead of relying on destructive fallback.
+                // Downgrades can only happen if you sideload an older APK; there is no
+                // sensible way to un-migrate, so start clean rather than crash-loop.
+                // Upgrades always go through a real migration and never lose data.
                 .fallbackToDestructiveMigrationOnDowngrade()
                 .build()
 

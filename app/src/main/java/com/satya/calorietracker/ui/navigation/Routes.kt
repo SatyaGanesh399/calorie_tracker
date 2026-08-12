@@ -3,22 +3,33 @@ package com.satya.calorietracker.ui.navigation
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BarChart
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.FitnessCenter
 import androidx.compose.material.icons.filled.Home
-import androidx.compose.material.icons.filled.Restaurant
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.outlined.BarChart
 import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.FitnessCenter
 import androidx.compose.material.icons.outlined.Home
-import androidx.compose.material.icons.outlined.Restaurant
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.ui.graphics.vector.ImageVector
 
 object Routes {
+    // Top level
     const val HOME = "home"
-    const val MEALS = "meals"
+    const val WORKOUTS = "workouts"
     const val PROGRESS = "progress"
     const val HISTORY = "history"
     const val SETTINGS = "settings"
+
+    /**
+     * The food library — favourites, custom foods, recipes, recents.
+     *
+     * Not a bottom-nav tab: everything it shows is already one tap away inside the
+     * Add Food sheet, so as a tab it was mostly duplication. It survives as a pushed
+     * screen because it's the only place to *manage* the library — edit a custom food,
+     * delete a recipe, pin something.
+     */
+    const val LIBRARY = "library"
 
     const val SEARCH = "search"
     const val SCANNER = "scanner"
@@ -41,15 +52,19 @@ object Routes {
     fun search(mealId: String, date: String) = "$SEARCH?meal=$mealId&date=$date"
     fun scanner(mealId: String, date: String) = "$SCANNER?meal=$mealId&date=$date"
     fun quickAdd(mealId: String, date: String) = "$QUICK_ADD?meal=$mealId&date=$date"
+
     fun customFood(foodId: Long = 0L, barcode: String = "", name: String = "") =
         "$CUSTOM_FOOD?foodId=$foodId&barcode=${barcode.encode()}&name=${name.encode()}"
 
-    private fun String.encode(): String =
-        java.net.URLEncoder.encode(this, Charsets.UTF_8.name()).replace("+", "%20")
     fun foodDetail(foodId: Long, mealId: String, date: String) =
         "$FOOD_DETAIL/$foodId?meal=$mealId&date=$date"
+
     fun editEntry(entryId: Long) = "$EDIT_ENTRY/$entryId"
+
     fun recipeEditor(recipeId: Long = 0L) = "$RECIPE_EDITOR?recipeId=$recipeId"
+
+    private fun String.encode(): String =
+        java.net.URLEncoder.encode(this, Charsets.UTF_8.name()).replace("+", "%20")
 }
 
 enum class TopLevelDestination(
@@ -59,7 +74,7 @@ enum class TopLevelDestination(
     val icon: ImageVector
 ) {
     HOME(Routes.HOME, "Home", Icons.Filled.Home, Icons.Outlined.Home),
-    MEALS(Routes.MEALS, "Meals", Icons.Filled.Restaurant, Icons.Outlined.Restaurant),
+    WORKOUTS(Routes.WORKOUTS, "Workouts", Icons.Filled.FitnessCenter, Icons.Outlined.FitnessCenter),
     PROGRESS(Routes.PROGRESS, "Progress", Icons.Filled.BarChart, Icons.Outlined.BarChart),
     HISTORY(Routes.HISTORY, "History", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth),
     SETTINGS(Routes.SETTINGS, "Settings", Icons.Filled.Settings, Icons.Outlined.Settings)

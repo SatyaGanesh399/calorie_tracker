@@ -1,6 +1,10 @@
 package com.satya.calorietracker.data.backup
 
+import com.satya.calorietracker.data.db.ExerciseEntity
 import com.satya.calorietracker.data.db.FoodEntity
+import com.satya.calorietracker.data.db.SessionWithSets
+import com.satya.calorietracker.data.db.WorkoutSessionEntity
+import com.satya.calorietracker.data.db.WorkoutSetEntity
 import com.satya.calorietracker.data.db.LogEntryEntity
 import com.satya.calorietracker.data.db.RecipeEntity
 import com.satya.calorietracker.data.db.RecipeIngredientEntity
@@ -25,11 +29,14 @@ data class BackupFile(
     val logEntries: List<BackupLogEntry> = emptyList(),
     val weights: List<BackupWeight> = emptyList(),
     val water: List<BackupWater> = emptyList(),
-    val recipes: List<BackupRecipe> = emptyList()
+    val recipes: List<BackupRecipe> = emptyList(),
+    /** Added in schema v2. Absent in v1 backups, which still import fine. */
+    val exercises: List<BackupExercise> = emptyList(),
+    val workouts: List<BackupWorkout> = emptyList()
 ) {
     companion object {
         const val APP_TAG = "CalorieTracker"
-        const val SCHEMA_VERSION = 1
+        const val SCHEMA_VERSION = 2
     }
 }
 
@@ -109,6 +116,44 @@ data class BackupRecipe(
     val isFavorite: Boolean = false,
     val createdAt: Long = 0L,
     val ingredients: List<BackupIngredient> = emptyList()
+)
+
+@Serializable
+data class BackupExercise(
+    val name: String,
+    val category: String,
+    val equipment: String,
+    val primaryMuscle: String,
+    val tracksWeight: Boolean = true,
+    val tracksReps: Boolean = true,
+    val tracksDuration: Boolean = false,
+    val tracksDistance: Boolean = false,
+    val isFavorite: Boolean = false
+)
+
+@Serializable
+data class BackupWorkout(
+    val date: String,
+    val startedAt: Long,
+    val endedAt: Long? = null,
+    val name: String,
+    val notes: String? = null,
+    val sets: List<BackupWorkoutSet> = emptyList()
+)
+
+@Serializable
+data class BackupWorkoutSet(
+    /** Matched back to the library by name on import, same as foods. */
+    val exerciseName: String,
+    val setNumber: Int = 1,
+    val weightKg: Double = 0.0,
+    val reps: Int = 0,
+    val durationSeconds: Int? = null,
+    val distanceMeters: Double? = null,
+    val rpe: Double? = null,
+    val isWarmup: Boolean = false,
+    val notes: String? = null,
+    val timestamp: Long = 0L
 )
 
 @Serializable
@@ -195,4 +240,62 @@ fun BackupIngredient.toEntity(recipeId: Long, position: Int) = RecipeIngredientE
     recipeId = recipeId, name = name, quantity = quantity, servingSize = servingSize, unitId = unitId,
     calories = calories, protein = protein, carbs = carbs, fat = fat,
     fiber = fiber, sugar = sugar, sodium = sodium, position = position
+)
+
+
+// ------------------------------------------------------- workouts (schema v2)
+
+fun ExerciseEntity.toBackup() = BackupExercise(
+    name = name, category = category, equipment = equipment, primaryMuscle = primaryMuscle,
+    tracksWeight = tracksWeight, tracksReps = tracksReps,
+    tracksDuration = tracksDuration, tracksDistance = tracksDistance,
+    isFavorite = isFavorite
+)
+
+fun BackupExercise.toEntity(now: Long) = ExerciseEntity(
+    name = name, category = category, equipment = equipment, primaryMuscle = primaryMuscle,
+    tracksWeight = tracksWeight, tracksReps = tracksReps,
+    tracksDuration = tracksDuration, tracksDistance = tracksDistance,
+    isCustom = true, isFavorite = isFavorite, createdAt = now
+)
+
+fun SessionWithSets.toBackup() = BackupWorkout(
+    date = session.date,
+    startedAt = session.startedAt,
+    endedAt = session.endedAt,
+    name = session.name,
+    notes = session.notes,
+    sets = sets.map {
+        BackupWorkoutSet(
+            exerciseName = it.exerciseName,
+            setNumber = it.setNumber,
+            weightKg = it.weightKg,
+            reps = it.reps,
+            durationSeconds = it.durationSeconds,
+            distanceMeters = it.distanceMeters,
+            rpe = it.rpe,
+            isWarmup = it.isWarmup,
+            notes = it.notes,
+            timestamp = it.timestamp
+        )
+    }
+)
+
+fun BackupWorkout.toEntity() = WorkoutSessionEntity(
+    date = date, startedAt = startedAt, endedAt = endedAt, name = name, notes = notes
+)
+
+fun BackupWorkoutSet.toEntity(sessionId: Long, exerciseId: Long) = WorkoutSetEntity(
+    sessionId = sessionId,
+    exerciseId = exerciseId,
+    exerciseName = exerciseName,
+    setNumber = setNumber,
+    weightKg = weightKg,
+    reps = reps,
+    durationSeconds = durationSeconds,
+    distanceMeters = distanceMeters,
+    rpe = rpe,
+    isWarmup = isWarmup,
+    notes = notes,
+    timestamp = timestamp
 )

@@ -13,6 +13,7 @@ import androidx.compose.material.icons.outlined.Analytics
 import androidx.compose.material.icons.outlined.CloudOff
 import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.material.icons.outlined.Notifications
+import androidx.compose.material.icons.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Person
 import androidx.compose.material.icons.outlined.PrivacyTip
 import androidx.compose.material.icons.outlined.Storage
@@ -41,6 +42,7 @@ fun SettingsScreen(
     onOpenData: () -> Unit,
     onOpenProviders: () -> Unit,
     onOpenPrivacy: () -> Unit,
+    onOpenLibrary: () -> Unit,
     modifier: Modifier = Modifier,
     contentPadding: PaddingValues = PaddingValues(0.dp)
 ) {
@@ -139,6 +141,13 @@ fun SettingsScreen(
         item {
             AppCard {
                 Column {
+                    SettingRow(
+                        title = "My food library",
+                        subtitle = "Favourites, custom foods and recipes",
+                        icon = Icons.Outlined.MenuBook,
+                        onClick = onOpenLibrary
+                    )
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     SettingRow(
                         title = "Food database",
                         subtitle = "Which nutrition sources to use",

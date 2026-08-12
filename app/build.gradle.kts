@@ -53,9 +53,12 @@ android {
     val releaseKeystore = file("$userHome/release.jks")
     val debugKeystore = file("$userHome/.android/debug.keystore")
 
+    val hasOwnKeystore =
+        releaseKeystore.exists() && !System.getenv("KEYSTORE_PASSWORD").isNullOrBlank()
+
     signingConfigs {
         create("personal") {
-            if (releaseKeystore.exists() && !System.getenv("KEYSTORE_PASSWORD").isNullOrBlank()) {
+            if (hasOwnKeystore) {
                 storeFile = releaseKeystore
                 storePassword = System.getenv("KEYSTORE_PASSWORD")
                 keyAlias = System.getenv("KEY_ALIAS") ?: "calorietracker"
@@ -66,6 +69,24 @@ android {
                 keyAlias = "androiddebugkey"
                 keyPassword = "android"
             }
+        }
+
+        // CI runs on a fresh machine every time, and AGP generates a brand new random
+        // debug keystore when it doesn't find one. That gives every build a different
+        // signature, which Android treats as a different app — so installing a new
+        // build would force an uninstall and wipe the diary.
+        //
+        // Pointing debug at the same stable keystore fixes that: every APK signs
+        // identically, so new builds install straight over the old one.
+        getByName("debug") {
+            if (hasOwnKeystore) {
+                storeFile = releaseKeystore
+                storePassword = System.getenv("KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("KEY_ALIAS") ?: "calorietracker"
+                keyPassword = System.getenv("KEY_PASSWORD") ?: System.getenv("KEYSTORE_PASSWORD")
+            }
+            // Otherwise leave AGP's default alone — fine for local development,
+            // where the keystore persists between builds anyway.
         }
     }
 

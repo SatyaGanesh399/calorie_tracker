@@ -171,8 +171,9 @@ class SettingsViewModel(
                     is ImportResult.Success -> {
                         onRemindersChanged(preferencesRepository.current().reminders)
                         DataOpResult.Imported(
-                            "Restored ${result.logEntries} diary entries, ${result.weights} weigh-ins, " +
-                                "${result.water} water logs, ${result.foods} foods and ${result.recipes} recipes."
+                            "Restored ${result.logEntries} diary entries, ${result.workouts} workouts, " +
+                                "${result.weights} weigh-ins, ${result.water} water logs, " +
+                                "${result.foods} foods and ${result.recipes} recipes."
                         )
                     }
                     is ImportResult.Failure -> DataOpResult.Failed(result.message)

@@ -17,6 +17,8 @@ import com.satya.calorietracker.data.repository.RecipeRepository
 import com.satya.calorietracker.data.repository.StatsRepository
 import com.satya.calorietracker.data.repository.WaterRepository
 import com.satya.calorietracker.data.repository.WeightRepository
+import com.satya.calorietracker.data.repository.WorkoutRepository
+import com.satya.calorietracker.data.seed.SeedSync
 import com.satya.calorietracker.widget.WidgetUpdater
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.StateFlow
@@ -107,6 +109,18 @@ class AppContainer(
         StatsRepository(diaryRepository, waterRepository)
     }
 
+    val workoutRepository: WorkoutRepository by lazy {
+        WorkoutRepository(database.workoutDao(), database.exerciseDao(), notifier)
+    }
+
+    /**
+     * Tops up the bundled food and exercise catalogs on an app that was installed
+     * before they grew. Safe to run on every launch — it only inserts what's missing.
+     */
+    val seedSync: SeedSync by lazy {
+        SeedSync(database.foodDao(), database.exerciseDao())
+    }
+
     val backupRepository: BackupRepository by lazy {
         BackupRepository(
             database = database,
@@ -115,6 +129,8 @@ class AppContainer(
             weightDao = database.weightDao(),
             waterDao = database.waterDao(),
             recipeDao = database.recipeDao(),
+            exerciseDao = database.exerciseDao(),
+            workoutDao = database.workoutDao(),
             prefs = preferencesRepository,
             notifier = notifier
         )
